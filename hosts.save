@@ -20,8 +20,8 @@
 [webservers]
 #alpha.example.org
 #beta.example.org
-192.168.1.37 ansible_user=technique
-#192.168.1.110
+#127.0.0.1
+192.168.1.110
 
 # If you have multiple hosts following a pattern you can specify
 # them like this:

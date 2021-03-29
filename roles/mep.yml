@@ -1,0 +1,100 @@
+---
+- hosts: 192.168.143.37
+  become: yes
+  become_user: root
+  become_method: sudo
+
+  #INSTALLATION DES MISES A JOUR
+
+  tasks:
+  - name: Installation des paquets communs à tous les serveurs
+    apt:
+      update_cache: yes
+      state: latest
+      name: ['glances', 'pwgen', 'sudo', 'tar', 'unzip', 'vim', 'whois']
+
+  
+  #INSTALLATION 
+
+  - name: Installation server LAMP
+    apt:
+      update_cache: yes
+      state: latest
+      name: ['apache2', 'mysql-server', 'php']
+
+
+  #CONFIG APACHE2
+
+    - name: Creation document root
+      file:
+        path: "/var/www/{{ http_host }}"
+        state: directory
+        owner: "{{ app_user }}"
+        mode: '0755'
+
+    - name: Set up Apache virtualhost
+      template:
+        src: "files/apache.conf.j2"
+        dest: "/etc/apache2/sites-available/{{ http_conf }}"
+      notify: Reload Apache
+
+    - name: Enable new site
+      shell: /usr/sbin/a2ensite {{ http_conf }}
+      notify: Reload Apache
+
+    - name: Disable default Apache site
+      shell: /usr/sbin/a2dissite 000-default.conf
+      when: disable_default
+      notify: Reload Apache
+
+
+  # MySQL Configuration
+
+    - name: Sets the root password
+      mysql_user:
+        name: root
+        password: "{{ mysql_root_password }}"
+        login_unix_socket: /var/run/mysqld/mysqld.sock
+
+    - name: Removes all anonymous user accounts
+      mysql_user:
+        name: ''
+        host_all: yes
+        state: absent
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    - name: Removes the MySQL test database
+      mysql_db:
+        name: test
+        state: absent
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+  # UFW Configuration (FireWall)
+
+    - name: "UFW - Allow HTTP on port {{ http_port }}"
+      ufw:
+        rule: allow
+        port: "{{ http_port }}"
+        proto: tcp
+
+
+  # Installation + Config Fail2Ban
+
+    - name: Installation + Config Fail2Ban
+      apt: name=fail2ban update_cache=yes state=latest
+        
+
+  # Installation + Config shhd
+
+    - name: Allow only technique user to login
+        lineinfile: dest=/etc/ssh/sshd_config regexp="^AllowUsers" line="AllowUsers technique" state=present
+        notify:
+    - restart ssh	
+
+
+
+
+
+
